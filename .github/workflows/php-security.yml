@@ -1,0 +1,46 @@
+name: PHP Security Scan
+
+on:
+  push:
+    branches: [ "6.2-dev" ]
+  pull_request:
+    branches: [ "6.2-dev" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  semgrep:
+    name: Semgrep PHP Scan
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: PHP-Sicherheitsanalyse ausführen
+        run: >
+          semgrep scan
+          --config=p/php
+          --config=p/security-audit
+          --exclude="libraries/vendor"
+          --exclude="tests"
+          --sarif
+          --output=semgrep-php.sarif
+
+      - name: Bericht als Download-Artefakt speichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-php-report
+          path: semgrep-php.sarif
+
+      - name: Ergebnisse in GitHub Security hochladen
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep-php.sarif
